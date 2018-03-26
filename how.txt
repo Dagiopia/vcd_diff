@@ -1,0 +1,128 @@
+how it works
+
+the main function gets the name of the files and creates diff object
+then the diff object creates VCDparse objects to get the information is the file
+after the parsing is completed and all the necessary info is obtained the diff
+creates ValChange objects for each of the files.
+The ValChange opens the file and seeks to the value change section and parses
+the current line into variable name, variable's value, the type of change and
+the time in which the change has occured. Diff then uses the info for each file
+created by ValChange to compare the value changes in the files.
+
+--------------------------------------------------------------------------------
+
+VCDparse
+has functions 
+		int getEndDefPos(char *) 
+				- returns the byte position of $enddefinitions in the file
+
+		int Definitions_section(char *)
+				- copies the file in buffer upto $enddefinitions and returns
+				  the size of the buffer which is the position of $enddefinitions
+
+		size_t CountOccur(string, string)
+				- counts the number of occurences of the second string in the
+				  first string
+
+		void scopePositions(string)
+				- gets the positions of the $scope keywords in the string
+
+		void upscopePositions(string)
+				- gets the positions of the $upscope keywords in the string
+
+		void varPositions(string)
+				- gets the positions of the $var keywords in the string
+
+		void varManager(char *)
+				- it opens the file and goes through the definitions section
+				  looking for scope, upscope and var
+				  when it finds $scope it increments the depth and places the scope
+				  id in scopeID in parallel with scopedepth
+				  when it finds $upscope it decrements the depth
+				  when it finds $var it gets the var type, size, idcode and
+				  reference with bit-select(if any) also the var's parent scope
+				  name and places them in varman structure
+
+		void refManager()
+				- uses the values in the varman structure to create a map
+				  of reference to a vector of var idcodes with the reference name
+				  with out bit-select being the key and the latter the value.
+				  Also creates a map of var idcode to reference pair with the 
+				  idcode used as key
+		
+		void setup()
+				- called by the constructor or from object creator
+				  it calls the functions above and initializes the variables
+
+
+-------------------------------------------------------------------------------
+
+diff
+has functions
+		void CheckScopes()
+				- checks if the number of scope definitions in both files is
+				  the same and calls CheckScopeNames()
+
+		void CheckScopeNames()
+				- compares the scope names in each of the files and stores
+				  which are present in one but not in the other for a later 
+				  report
+
+		void CheckVars()
+				- checks to see if the number of variable definitions in each
+				  of the files is the same and calls CheckVarNames()
+
+		void CheckVarNames()
+				- compares the variable references in both files and stores the
+				  ones that are present in one but not in the other for a later 
+				  report
+
+		void VarValueChange()
+				- creates the ValChange objects for both files and uses the 
+				  info from that class to compare the variable changes
+
+-------------------------------------------------------------------------------
+
+ValChange
+has functions
+		void getNextLine()
+				- gets the next line in the value change section and breaks down
+				  that line into var_code, value and type of change that could be
+				  either a state change or value change
+
+###############################################################################
+note to self
+u should merge the three positions functions to work with all
+accept a pointer to an array and a string to search for and then fill 
+that up with positions
+
+
+
+###############################################################################
+writing makefile
+
+SourceMain.cpp depends on diff.h
+diff.h/cpp depends on VCDparse.h/cpp ValChange.h/cpp and g_func.h
+VCDparse depends on g_func.h
+ValChange depends on nothing
+
+#####MAKEFILE
+CC=g++
+.PHONY : clean
+vcd_diff : SourceMain.o diff.o VCDparse.o ValChange.o
+	$(CC) -o $@ SourceMain.o diff.o VCDparse.o ValChange.o
+
+ValChange.o : ValChange.h ValChange.cpp 
+	$(CC) -c ValChange.cpp 
+
+VCDparse.o : VCDparse.h VCDparse.cpp g_func.h
+	$(CC) -c VCDparse.cpp
+
+diff.o : diff.h diff.cpp VCDparse.h VCDparse.cpp ValChange.h Valchange.cpp g_func.h
+	$(CC) -c diff.cpp 
+
+SourceMain.o : SourceMain.cpp VCDparse.h VCDparse.h diff.h diff.cpp ValChange.h ValChange.cpp g_func
+
+
+clean : 
+	rm -f vcd_diff SourceMain.o diff.o VCDparse.o ValChange.o 

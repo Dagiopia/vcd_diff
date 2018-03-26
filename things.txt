@@ -1,0 +1,240 @@
+
+		if the value change starts with 0, 1, x or z then the next char(s) is the var name 
+		and nothing else... if  it starts with the var name then the next is the new val
+		but still clashes may occure as there could be identifiers that start with 0, 1, x or z
+		and it's gonna mistake u into thinking that it's a state declaration for a var identifier
+		that is the same as the rest of the var name
+			for example the var name maybe 0* and there maybe another var identifier  named *0
+			so when u run into 0*0 it may look like the var *0 has state 0 or it could also be
+			the var 0* has value 0 
+		-- idk how to process that yet maybe it never exists like that
+		
+--oh dear god!! dagim u stupid fuck!!!!!! it never exists like that -- u were confused with 
+	the time declarator #<time> b/c there was an id_code # and u thought
+	the value change section could start with both the id_code and the state values at diff
+	points -- the ones that start with # are time indicators and the one like 0# is state of #
+
+		demo go through the val change section looking for patters
+	
+
+
+
+
+
+
+
+
+		there should be a function that obtains the position of $enddefinitions
+		by opening the file in binary mode and return that position
+
+		actually endewm store the entire definitions section in buffer string
+		i don't think it's  gonna be that large... a max of 5 mb is still to small
+		for the ram... selezi beka store the entire definitions in a string
+		
+
+		also there should be a function that gets the vars in a scope it should 
+		accept a beggining and end positions which would be the scope type and 
+		identifier from scopeID and the end poition should be the type and name 
+		of the next scope in scopeID
+		
+		okay there are many types of vars and references like as defined in the spec
+				
+			
+				$var <var_type> <size> <identifier_code> <reference> $end
+
+				  <var_type>
+					event, integer, parameter, real, reg, supply0, 
+					supply1, time, tri, triand, trireg, tri0, tri1, 
+					wand, wire, wor
+
+				  <size>
+					decimal number(how many bits r in var)
+
+				  <identifier_code>
+					name of the variable in ASCII characters
+   
+				  <reference>
+					identifier
+					identifier[bit_select_index]
+					identifier[msb_index : lsb_index]
+					--the reference is like the identifier actually... it's like a node in a 
+					  circuit.. all commonly connected points have the same reference
+					  the identifier code may change from file to file but the reference stays
+					  the same
+ 
+				  <index>
+					decimal number
+
+		now that i think about it, reading all vars isn't actually necessary
+		when the comparison is being done because the way i was thinking of 
+		doing is like this
+
+				start from the topmost scope and get the first var and do the
+				same in the other file with matching scope type and id then
+				store the changes of the var in the first file into an appropriate
+				container like vector and do the same for the matching var in the 
+				second file and compare their changes report on console if there 
+				are any differences and move on to the next
+		^ method doesn't work... there maybe different numbers of variables and scopes
+		so it should be like... store all var definitions somewhere manageable and then
+		the first file selects which variable to work on now and that var is searched for 
+		in the second file and it's value changes comapared with the first one
+	
+		u should also have a state identifier like the one in the java code. it used
+		an enum with memebers like "READING_HEADER", "GETTING_VARIABLES"... minamin
+		to keep track of what's being done.
+
+
+		
+		looks like time is controld by #<time> -- everything begining with # in the val cahnge
+		section indicates the current time and everyting below it occurs at that specified time
+		in the unit indicated by $timescale until the next defintion of a other #<time>
+
+		also having the depth just by it's number may not be enough bacause when refereing to a 
+		certain	scope and u wanna say under which scope it's located and u have the depth to be 3 
+		then it could be a child of one of the many scopes with depth = 2
+		so u should have another parallel storage which stores the parent scope for that 
+		scope. if the scope in question doesn't have a parent then it's set to zero 
+		oh n it's better if the storage is a string type which stores the name of the parent scope
+		and only the immediate parent so that u can loop on a function that returns the name of the
+		immediate parent of the scope until a zero is found to obtain the complete address of the 
+		scope in question
+
+		
+	
+
+
+	okay now that u are done with the file parsing, proceed to making this code a class
+
+
+
+
+
+	-----------------------------------------------------------------------------------------
+
+
+	after doing the var value change section with one var at a time, it came to my attention
+	that the concept of data-flow language is actually very important in the dump.
+	So now the value change happens wrp to the references of the variables...
+	here's how it works
+						there could be many variables that point to the same reference
+						thus the change in var x and y both with reference z, when either 
+						of those vars change, it affects z.
+	to deal with this situation... first pick a reference and get all the vars that point to it
+	then go through the val change section looking for all those varibles... any change the in 
+	those vars is registered in a common container that stores the changes for that particular 
+	reference
+
+	and also u should deal with the bit-selects in references... a reference may be a vector
+	and value changes for certain sections of that references may occur i.e if a reference is declared
+	like "crashtest_fv_data_t [99:0]" with size 100... and other following vars may have references
+	like "crashtest_fv_data_t [96]" with size 1... or like "crashtest_fv_data_t [59:0]" with size 60
+	so what this means is the first one is the entire vector with bit positions of 0-99 and the second
+	one is saying "my var represents the 96th bit in that binary" and the 3rd one says "my var represents
+	the bits from 0-59 in that 100 bits long binary" so a construction of the bits is necessary inorder
+	to deal with changes to a single bit in a multibit binary value...
+			start with scanning the bit-select of references and maybe change the varman structure
+			to work primarily for references and it's members should contain the vars associated with
+			that specific reference
+
+
+		how it should be implemented... 
+										select a reference
+										get all vars that point to it
+										go through the val change section looking for those vars
+
+	the next thing to do is get all the reference names from variable_man and assign var id_codes
+	that point to the same reference and store them in an appropriate container
+
+
+
+	------------------------
+	i just found duplicate var id_codes within different scopes...
+		i'm just gonna assume they are the same variables and prohibit deuplicate 
+		id_code storage in ref_man
+
+	------------------------
+	also consider doing the comparision on the fly... some variables change much frequently
+	look at the var {2 in good.vcd... it changes 32473 times within 1615 ns (0.000001615 seconds)
+	and imagine if the simulation is done for minutes
+	------------------------
+
+	##############################################################################################
+	how to approach the val change section...
+		seek to enddef
+		if $dumpvar 
+					initialize time to zero
+		else		
+					wait for #<time>
+		getline
+		parse line
+					-if line begines with 0, 1, x, or z then it's a state change
+					 and there's nothing after that but the varcode(no space minamin)
+					-if line begines with b or r then the next chars until a white space
+					 are values for the var which is found after the space
+		check var name for reference in consideration
+		if(same)
+				note the time and it's value and compare it to the corresponding var
+				in the other file
+		else
+				skip to next line
+	##############################################################################################
+
+		
+why i used ref_man and var_ref_man
+		ref_man stores reference name to var code pair --- reference as key and vector of var codes as value
+		i used it to have a mapping of which variables belong to which reference and since a reference
+		may have multiple var codes i made the second member a vector... it's useful when doing the diff
+		for a single reference... it gives which vars to look for from a given reference
+
+		var_ref_man stores var code to reference pair... var code as key and reference name including the
+		bit-select(if any)... and this is useful when finding a var and i want to know to which reference
+		with bit-select it belongs to
+but it's kinda redundant to have the variable_man structure as well... i think u can merge the 
+structure and the second map var_ref_man
+but the downside is that there are vars that exist in multiple scopes and if i did it with a map with
+var code as key then there won't be any way to tell in which scope that var is in
+
+---------------------
+ahun demo i found a varible that points to different references... so what the program does no is
+say that that variable points to the reference that was last encountered
+---------------------
+
+and i think u also need to consider timescale differences... that is if the files have
+different time scales then the simulation can still be done by accounting for the time 
+difference but if it's very big then u're gonna have to abort the comparision saying it can't be done
+
+what i mean by accounting for a time difference is for example if the first file has a time scale
+of 1ps and the other has 100ps then whenever u get the current time discriptor in the first file
+u should ultiply it by 100 and then continue with comparision
+
+so we may need another function that checks the time differnce and take the appropriate actions
+in VCDparse, there's an int time_scale that holds the time scale and time_unit that holds the unit like
+ps, ns minamin
+
+
+
+
+
+
+dagim u know u r very stupid right!!!!!!!!! how could u not think of it before!!!!!
+LIFO!!!!!! this is how u're gonna manage the scopes and do the address... 
+when a $scope is found - push_back and when $upscope is found - pop_back
+between the $scope and the $upscope are the vars...
+u can use the previous method of telling child and parent by searching for the parent's name
+(address) within the child's name(address)... if it's found then it's a child and if not it's not
+
+okay awesome!!!! scope managing works and vars don't repeat now
+the address_var map<string, map<string, vector<string>>> handles the ref, address and vars
+how it works is
+the first string in the first map holds the reference name and the string in the
+second map holds the address 
+
+
+now over to diff
+when the program is invoked with the -r switch and a ref name, that ref name might occure
+at multiple places(in different scopes) that are out of each other's way and it might be a new
+ref everytime it's defined for example ref QN in good.vcd occurs 110 times all of which are 
+different because they r in different scopes... so when the user uses the -r switch, it's not
+known which QN the user wants to see
+it's a must the user specifies the specific scope the given ref is in
